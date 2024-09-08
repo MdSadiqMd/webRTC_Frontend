@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import Peer from 'peerjs';
 import { v4 as UUIDv4 } from 'uuid';
 
-import { SOCKET_SERVER } from '../constants/constants';
+import { SOCKET_SERVER, ROOM_SOCKET, USERS_SOCKET } from '../constants/constants';
 import { IProps } from '../types/IProps.types';
 import { IRoomParams } from '../types/IRoomParams.types';
 
@@ -33,7 +33,11 @@ export const SocketProvider: React.FC<IProps> = ({ children }) => {
 
     useEffect(() => {
         const userId = UUIDv4();
-        const newPeer = new Peer(userId);
+        const newPeer = new Peer(userId, {
+            host: "localhost",
+            port: 9000,
+            path: "/myapp"
+        });
 
         setUser(newPeer);
         fetchUserFeed();
@@ -42,8 +46,8 @@ export const SocketProvider: React.FC<IProps> = ({ children }) => {
             navigate(`/room/${roomId}`);
         };
 
-        socket.on('room-created', enterRoom);
-        socket.on('get-users', fetchParticipants);
+        socket.on(ROOM_SOCKET, enterRoom);
+        socket.on(USERS_SOCKET, fetchParticipants);
     }, []);
 
     return (

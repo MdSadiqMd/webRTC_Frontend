@@ -1,12 +1,13 @@
 import { useContext } from "react";
 
 import { SocketContext } from "../context/SocketContext";
+import { CREATE_SOCKET } from "../constants/constants";
 
 const CreateRoom: React.FC = () => {
     const { socket } = useContext(SocketContext);
 
     const initRoom = () => {
-        socket.emit('create-room');
+        socket.emit(CREATE_SOCKET);
     };
 
     return (
