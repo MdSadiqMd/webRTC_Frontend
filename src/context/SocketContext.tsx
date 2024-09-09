@@ -1,12 +1,14 @@
 import SocketIOClient from 'socket.io-client';
-import { createContext, useEffect, useState } from 'react';
+import { createContext, useEffect, useReducer, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Peer from 'peerjs';
 import { v4 as UUIDv4 } from 'uuid';
 
-import { SOCKET_SERVER, ROOM_SOCKET, USERS_SOCKET } from '../constants/constants';
+import { SOCKET_SERVER, ROOM_SOCKET, USERS_SOCKET, USER_JOINED_SOCKET, READY_SOCKET, CALL_SOCKET, STRAM_SOCKET } from '../constants/constants';
 import { IProps } from '../types/IProps.types';
 import { IRoomParams } from '../types/IRoomParams.types';
+import { peerReducer } from '../Reducers/peer.reducer';
+import { addPeerAction } from '../Actions/peer.action';
 
 export const SocketContext = createContext<any | null>(null);
 const socket = SocketIOClient(SOCKET_SERVER, {
@@ -18,6 +20,7 @@ export const SocketProvider: React.FC<IProps> = ({ children }) => {
     const navigate = useNavigate();
     const [user, setUser] = useState<Peer>();
     const [stream, setStream] = useState<MediaStream>();
+    const [peers, dispatch] = useReducer(peerReducer, {});
 
     const fetchParticipants = ({ roomId, participants }: IRoomParams) => {
         console.log(roomId, participants);
@@ -50,8 +53,30 @@ export const SocketProvider: React.FC<IProps> = ({ children }) => {
         socket.on(USERS_SOCKET, fetchParticipants);
     }, []);
 
+    useEffect(() => {
+        if (!user || !stream) return;
+
+        socket.on(USER_JOINED_SOCKET, ({ peerId }) => {
+            const call = user.call(peerId, stream);
+            console.log('calling user', peerId);
+            call.on(STRAM_SOCKET, () => {
+                dispatch(addPeerAction(peerId, stream));
+            });
+        });
+
+        user.on(CALL_SOCKET, (call) => {
+            console.log('receiving a call');
+            call.answer(stream);
+            call.on(STRAM_SOCKET, () => {
+                dispatch(addPeerAction(call.peer, stream));
+            });
+        });
+
+        socket.emit(READY_SOCKET);
+    }, [user, stream]);
+
     return (
-        <SocketContext.Provider value={{ socket, user, stream }}>
+        <SocketContext.Provider value={{ socket, user, stream, peers }}>
             {children}
         </SocketContext.Provider>
     );
